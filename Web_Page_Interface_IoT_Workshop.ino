@@ -17,8 +17,8 @@ WebSocketsServer webSocket(81);    // create a websocket server on port 81
 
 File fsUploadFile;                                    // a File variable to temporarily store the received file
 
-const char *ssid = "Device1"; // The name of the Wi-Fi network that will be created
-const char *password = "device1@123";   // The password required to connect to it, leave blank for an open network
+const char *ssid = "IoT Device 1"; // The name of the Wi-Fi network that will be created
+const char *password = "iotdevice";   // The password required to connect to it, leave blank for an open network
 
 const char *OTAName = "ESP8266";           // A name and a password for the OTA service
 const char *OTAPassword = "esp8266";
