@@ -17,7 +17,7 @@ WebSocketsServer webSocket(81);    // create a websocket server on port 81
 
 File fsUploadFile;                                    // a File variable to temporarily store the received file
 
-const char *ssid = "IoT Device 1"; // The name of the Wi-Fi network that will be created
+const char *ssid = "IoT Device 14"; // The name of the Wi-Fi network that will be created
 const char *password = "iotdevice";   // The password required to connect to it, leave blank for an open network
 
 const char *OTAName = "ESP8266";           // A name and a password for the OTA service
@@ -290,10 +290,11 @@ boolean connectToHotspot()
     Serial.println();
     Serial.println();
     Serial.print("Wait for WiFi... ");
-
-    while(WiFiMulti.run() != WL_CONNECTED) {
+    int count = 0;
+    while(WiFiMulti.run() != WL_CONNECTED && count < 50) {
         Serial.print(".");
-        delay(500);
+        count++;
+        delay(200);
     }
 
     Serial.println("");
@@ -374,10 +375,12 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
               char auth[len];
               token.toCharArray(auth,len);
               startBlynk = true; 
+              if( WiFi.status() == WL_CONNECTED){
+                Serial.println("Connect to blynk");
                Blynk.config(auth);
                while (Blynk.connect() == false) {}
               //Blynk.begin(blynkAuthToken, WiFi_SSID, Password);
-             }
+             }}
         }         
       }/* else if (payload[0] == 'R') {                      // the browser sends an R when the rainbow effect is enabled
         rainbow = true;
@@ -579,10 +582,12 @@ void setup() {
               char authToken[tokenlen];
               atoken.toCharArray(authToken,tokenlen);
               startBlynk = true; 
+               if( WiFi.status() == WL_CONNECTED){
+                Serial.println("Connect to blynk");
                Blynk.config(authToken);
                while (Blynk.connect() == false) {}
               //Blynk.begin(blynkAuthToken, WiFi_SSID, Password);
-             }
+             }}
 }
 
 
