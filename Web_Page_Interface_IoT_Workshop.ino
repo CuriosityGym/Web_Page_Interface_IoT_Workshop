@@ -8,6 +8,8 @@
 #include <ArduinoJson.h>
 #include <FS.h>
 #include <WebSocketsServer.h>
+#include <DHT.h>
+#include <Adafruit_NeoPixel.h>
 #define EVENTS 8
 
 ESP8266WiFiMulti WiFiMulti;       // Create an instance of the ESP8266WiFiMulti class, called 'wifiMulti'
@@ -17,7 +19,7 @@ WebSocketsServer webSocket(81);    // create a websocket server on port 81
 
 File fsUploadFile;                                    // a File variable to temporarily store the received file
 
-const char *ssid = "IoT Device 14"; // The name of the Wi-Fi network that will be created
+const char *ssid = "IoT Device 15  "; // The name of the Wi-Fi network that will be created
 const char *password = "iotdevice";   // The password required to connect to it, leave blank for an open network
 
 const char *OTAName = "ESP8266";           // A name and a password for the OTA service
@@ -25,6 +27,19 @@ const char *OTAPassword = "esp8266";
 
 
 const char* mdnsName = "esp8266"; // Domain name for the mDNS responder
+
+#define PIN 4
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(1, PIN, NEO_GRB + NEO_KHZ800);
+#define DHTPIN 2          // What digital pin we're connected to
+
+// Uncomment whatever type you're using!
+#define DHTTYPE DHT11     // DHT 11
+//#define DHTTYPE DHT22   // DHT 22, AM2302, AM2321
+//#define DHTTYPE DHT21   // DHT 21, AM2301
+
+DHT dht(DHTPIN, DHTTYPE);
+BlynkTimer timer;
 
 bool rainbow = false;             // The rainbow effect is turned off on startup
 
@@ -283,9 +298,9 @@ boolean connectToHotspot()
             return false;
           } else {
             Serial.println("Config loaded");
-   // WiFi.mode(WIFI_STA);     
-             // We start by connecting to a WiFi network
-    WiFiMulti.addAP(WiFi_SSID, Password);
+  // WiFi.mode(WIFI_STA);
+  //WiFi.begin(ssid, password);
+  WiFiMulti.addAP(WiFi_SSID, Password);
 
     Serial.println();
     Serial.println();
@@ -296,7 +311,14 @@ boolean connectToHotspot()
         count++;
         delay(200);
     }
-
+    pinMode(2,OUTPUT);
+    for(int i=0; i<10;i++){
+      digitalWrite(2,LOW);
+      delay(500);
+      digitalWrite(2,HIGH);
+      delay(500);
+    }
+    pinMode(2,INPUT);
     Serial.println("");
     Serial.println("WiFi connected");
     Serial.println("IP address: ");
@@ -311,6 +333,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
   switch (type) {
     case WStype_DISCONNECTED:             // if the websocket is disconnected
       Serial.printf("[%u] Disconnected!\n", num);
+      pinMode(2,OUTPUT);
+      for(int i=0; i<3;i++){
+         digitalWrite(2,LOW);
+         delay(1000);
+         digitalWrite(2,HIGH);
+         delay(1000);
+       }
+      pinMode(2,INPUT);
       break;
     case WStype_CONNECTED: {              // if a new websocket connection is established
         IPAddress ip = webSocket.remoteIP(num);
@@ -335,6 +365,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
           } 
         else {
            Serial.println("Config saved");
+           pinMode(2,OUTPUT);
+           for(int i=0; i<15;i++){
+              digitalWrite(2,LOW);
+              delay(100);
+              digitalWrite(2,HIGH);
+              delay(100);
+            }
+           pinMode(2,INPUT);
            if (!SPIFFS.begin()) {
                  Serial.println("Failed to mount file system");
                  //return false;
@@ -379,7 +417,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
                 Serial.println("Connect to blynk");
                Blynk.config(auth);
                while (Blynk.connect() == false) {}
-              //Blynk.begin(blynkAuthToken, WiFi_SSID, Password);
+                //Blynk.begin(blynkAuthToken, WiFi_SSID, Password);
+                Serial.println("blynk");
              }}
         }         
       }/* else if (payload[0] == 'R') {                      // the browser sends an R when the rainbow effect is enabled
@@ -396,6 +435,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
 /*__________________________________________________________SETUP_FUNCTIONS__________________________________________________________*/
 
 void startWiFi() { // Start a Wi-Fi access point, and try to connect to some given access points. Then wait for either an AP or STA connection
+  WiFi.mode(WIFI_AP);
   WiFi.softAP(ssid, password);             // Start the access point
   Serial.print("Access Point \"");
   Serial.print(ssid);
@@ -420,7 +460,7 @@ void startWiFi() { // Start a Wi-Fi access point, and try to connect to some giv
     Serial.print("Station connected to ESP8266 AP");
   }*/
   Serial.println("\r\n");
-  WiFi.softAP(ssid, password);
+  //WiFi.softAP(ssid, password);
 
   IPAddress myIP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
@@ -511,6 +551,56 @@ boolean debounce() {
   return retVal;
 }
 
+/*_________________________________________________________Blynk Code_____________________________________________________*/
+
+
+// This function sends Arduino's up time every second to Virtual Pin (5).
+// In the app, Widget's reading frequency should be set to PUSH. This means
+// that you define how often to send data to Blynk App.
+
+void sendSensor()
+{
+  float h = dht.readHumidity();
+  float t = dht.readTemperature(); // or dht.readTemperature(true) for Fahrenheit
+  Serial.print("Temp: ");
+  Serial.println(t);
+  Serial.print("Hum: ");
+  Serial.println(h);
+  if (isnan(h) || isnan(t)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return;
+  }
+  // You can send any value at any time.
+  // Please don't send more that 10 values per second.
+  Blynk.virtualWrite(V5, h);
+  Blynk.virtualWrite(V6, t);
+}
+/*// Input a value 0 to 255 to get a color value.
+// The colours are a transition r - g - b - back to r.
+uint32_t Wheel(byte WheelPos) {
+  if (WheelPos < 85) {
+    return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+  } else if (WheelPos < 170) {
+    WheelPos -= 85;
+    return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+  } else {
+    WheelPos -= 170;
+    return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+  }
+}
+*/
+BLYNK_WRITE(V2)
+{
+  int r = param[0].asInt();
+  int g = param[1].asInt();
+  int b = param[2].asInt();
+  for (int i = 0; i < strip.numPixels(); i++)
+  {
+    strip.setPixelColor(i, r,g,b);
+    // OR: strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + shift) & 255));
+  }
+  strip.show();
+}
 /*__________________________________________________________SETUP__________________________________________________________*/
 
 void setup() {
@@ -520,6 +610,9 @@ void setup() {
   Serial.println("\r\n");
   // make the pushbutton's pin an input:
   pinMode(pushButton, INPUT);
+  //dht.begin();
+  strip.begin();
+  strip.show();
   //updateHtml();
   startWiFi();                 // Start a Wi-Fi access point, and try to connect to some given access points. Then wait for either an AP or STA connection
   
@@ -585,18 +678,17 @@ void setup() {
                if( WiFi.status() == WL_CONNECTED){
                 Serial.println("Connect to blynk");
                Blynk.config(authToken);
+               Serial.println("Connect to BLYNK");
                while (Blynk.connect() == false) {}
+               dht.begin();
+
+               // Setup a function to be called every second
+               timer.setInterval(1000L, sendSensor);
               //Blynk.begin(blynkAuthToken, WiFi_SSID, Password);
              }}
 }
 
 
-/*_________________________________________________________Blynk Code_____________________________________________________*/
-
-
-// This function sends Arduino's up time every second to Virtual Pin (5).
-// In the app, Widget's reading frequency should be set to PUSH. This means
-// that you define how often to send data to Blynk App.
 
 
 /*__________________________________________________________LOOP__________________________________________________________*/
@@ -612,6 +704,7 @@ void loop() {
     {
       //Serial.println("Blynk code running");
       Blynk.run();
+      timer.run();
     }
   if(startBlynk == false )
     {
@@ -723,6 +816,3 @@ void loop() {
      }
    }  
 }
-
-
-
