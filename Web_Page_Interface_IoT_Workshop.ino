@@ -1,4 +1,4 @@
-#define BLYNK_PRINT Serial
+ #define BLYNK_PRINT Serial
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
 #include <ESP8266WiFiMulti.h>
@@ -19,7 +19,7 @@ WebSocketsServer webSocket(81);    // create a websocket server on port 81
 
 File fsUploadFile;                                    // a File variable to temporarily store the received file
 
-const char *ssid = "IoT Device 15  "; // The name of the Wi-Fi network that will be created
+const char *ssid = "IoT Device 2"; // The name of the Wi-Fi network that will be created
 const char *password = "iotdevice";   // The password required to connect to it, leave blank for an open network
 
 const char *OTAName = "ESP8266";           // A name and a password for the OTA service
@@ -27,6 +27,8 @@ const char *OTAPassword = "esp8266";
 
 
 const char* mdnsName = "esp8266"; // Domain name for the mDNS responder
+
+const char* host = "maker.ifttt.com";
 
 #define PIN 4
 
@@ -312,7 +314,7 @@ boolean connectToHotspot()
         delay(200);
     }
     pinMode(2,OUTPUT);
-    for(int i=0; i<10;i++){
+    for(int i=0; i<6;i++){
       digitalWrite(2,LOW);
       delay(500);
       digitalWrite(2,HIGH);
@@ -683,7 +685,7 @@ void setup() {
                dht.begin();
 
                // Setup a function to be called every second
-               timer.setInterval(1000L, sendSensor);
+               //timer.setInterval(2000L, sendSensor);
               //Blynk.begin(blynkAuthToken, WiFi_SSID, Password);
              }}
 }
@@ -709,7 +711,7 @@ void loop() {
   if(startBlynk == false )
     {
        // Define the WiFi Client
-       WiFiClient client;
+      // WiFiClient client;
        
  // Wait for button Presses
   boolean pressed = debounce();
@@ -729,7 +731,7 @@ void loop() {
   {
     lastPressedMillis=0;
     
-     connectToHotspot();
+       connectToHotspot();
        if (!SPIFFS.begin()) {
                  Serial.println("Failed to mount file system");
                  //return false;
@@ -749,42 +751,61 @@ void loop() {
        event_name += "_";
        event_name +=count;
        String key(iftttKey);
-      Serial.println("IFTTT code running"); 
-      Serial.print("Trigger" + String(event_name) + " Event Pressed ");
+      Serial.println("IFTTT code running");
+      Serial.print("Event Name: ");
+      Serial.println(event_name); 
+      Serial.print("Trigger " + String(event_name) + " Button Pressed ");
       Serial.print(BUTTON_COUNTER);
       Serial.println(" times");
        // Set the http Port
        const int httpPort = 80;
-       const char* IFTTT_URL = "maker.ifttt.com";
+       //const char* IFTTT_URL = "maker.ifttt.com";
        // Make sure we can connect
-       if (!client.connect(IFTTT_URL, httpPort))
-          {
+        WiFiClient client;
+        if (!client.connect(host, httpPort)) {
+            Serial.println("connection failed");
             return;
           }
 
        // We now create a URI for the request
        // String url = "/trigger/" + String(eventName) + "-"+String(eventCount)+ "/with/key/" + String(IFTTT_KEY);
-       String url = "/trigger/" + String(event_name) + "/with/key/" + String(key);
-
+       String url = "/trigger/" + String(event_name) + "/with/key/";// + String(key);
+       url += key;
+       Serial.print("Requesting URL: ");
+       Serial.println(url);
        // Set some values for the JSON data depending on which event has been triggered
-       IPAddress ip = WiFi.localIP();
-       String ipStr = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
-       String value_1 = String(BUTTON_COUNTER);
+       //IPAddress ip = WiFi.localIP();
+       //String ipStr = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
+       //String value_1 = String(BUTTON_COUNTER);
+       const char* door_state = "......";
        //String value_2 = String(h);
        //String value_3 = "";
-       
-
 
         // Build JSON data string
-        String data = "";
-        data = data + "\n" + "{\"value1\":\"" + value_1 + "\"}";
+       // String data = "";
+       // data = data + "\n" + "{\"value1\":\"" + value_1 + "\"}";
         Serial.print("Send request");
+        delay(500);
         // Post the button press to IFTTT
-        if (client.connect(IFTTT_URL, httpPort))
-           {
+        //if (client.connect(host, httpPort))
+          // {
+             client.print(String("POST ") + url + " HTTP/1.1\r\n" +
+                       "Host: " + host + "\r\n" + 
+                       "Content-Type: application/x-www-form-urlencoded\r\n" + 
+                       "Content-Length: 13\r\n\r\n" +
+                       "value1=" + door_state + "\r\n");
+             Serial.println("Event Triggered");           
 
+             pinMode(2,OUTPUT);
+             for(int i=0; i<7;i++){
+                digitalWrite(2,LOW);
+                delay(250);
+                digitalWrite(2,HIGH);
+                delay(250);
+               }
+       pinMode(2,INPUT);
              // Sent HTTP POST Request with JSON data
-             client.println("POST " + url + " HTTP/1.1");
+         /*    client.println("POST " + url + " HTTP/1.1");
              Serial.println("POST " + url + " HTTP/1.1");
              client.println("Host: " + String(IFTTT_URL));
              Serial.println("Host: " + String(IFTTT_URL));
@@ -809,8 +830,8 @@ void loop() {
              client.println(data);
              Serial.println(data);
 
-           
-           }
+           */
+           //}
           BUTTON_COUNTER=0;  
       
      }
